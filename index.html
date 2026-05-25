@@ -1,0 +1,1187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>MSM Anim Creator Pro</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #1c1c1e;
+            color: #ffffff;
+            overflow: hidden;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+        /* Главная рабочая область */
+        #workspace {
+            flex: 1;
+            position: relative;
+            background-color: #2c2c2e;
+            overflow: hidden;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: grab;
+        }
+        canvas:active {
+            cursor: grabbing;
+        }
+        /* Панель управления сверху */
+        #top-bar {
+            height: 50px;
+            background-color: #1c1c1e;
+            border-bottom: 1px solid #3a3a3c;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 10px;
+            z-index: 10;
+        }
+        .btn {
+            background-color: #3a3a3c;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            font-weight: 500;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .btn:active {
+            background-color: #48484a;
+        }
+        .btn-primary {
+            background-color: #0a84ff;
+        }
+        .btn-primary:active {
+            background-color: #0070e0;
+        }
+        .btn-danger {
+            background-color: #ff453a;
+        }
+        .btn-sm {
+            padding: 2px 6px;
+            font-size: 11px;
+            border-radius: 4px;
+        }
+        .btn-lang {
+            background-color: #30d158;
+            font-weight: bold;
+        }
+        .btn-lang:active {
+            background-color: #24b34b;
+        }
+        .file-input {
+            display: none;
+        }
+        /* Нижняя панель (Таймлайн и Кости) */
+        #bottom-panel {
+            height: 300px;
+            background-color: #1c1c1e;
+            border-top: 1px solid #3a3a3c;
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+        }
+        #timeline-controls {
+            height: 45px;
+            border-bottom: 1px solid #3a3a3c;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+            gap: 10px;
+        }
+        #timeline-scroll {
+            flex: 1;
+            overflow-x: auto;
+            display: flex;
+            align-items: center;
+            background-color: #000000;
+            height: 100%;
+            padding: 0 5px;
+        }
+        .frame-track {
+            display: flex;
+            gap: 2px;
+        }
+        .frame-node {
+            width: 24px;
+            height: 24px;
+            background-color: #2c2c2e;
+            border: 1px solid #3a3a3c;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            cursor: pointer;
+        }
+        .frame-node.active {
+            background-color: #0a84ff;
+            color: white;
+            border-color: #54a6ff;
+        }
+        .frame-node.has-key {
+            border-color: #ffd60a;
+        }
+        /* Разделители окон */
+        #sub-split {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+        #bone-inspector {
+            width: 300px;
+            border-right: 1px solid #3a3a3c;
+            display: flex;
+            flex-direction: column;
+            background-color: #1c1c1e;
+        }
+        .panel-title {
+            font-size: 12px;
+            text-transform: uppercase;
+            color: #8e8e93;
+            padding: 8px 10px;
+            background-color: #2c2c2e;
+            border-bottom: 1px solid #3a3a3c;
+        }
+        #bone-list {
+            flex: 1;
+            overflow-y: auto;
+        }
+        .bone-item {
+            padding: 8px 10px;
+            border-bottom: 1px solid #2c2c2e;
+            font-size: 13px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+        .bone-item.active {
+            background-color: #2c2c2e;
+            border-left: 4px solid #0a84ff;
+        }
+        .layer-controls {
+            display: flex;
+            gap: 3px;
+        }
+        #property-panel {
+            flex: 1;
+            padding: 10px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .prop-group {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .prop-group label {
+            font-size: 12px;
+            color: #8e8e93;
+        }
+        .prop-row {
+            display: flex;
+            gap: 5px;
+            align-items: center;
+        }
+        /* Верхние инструменты трансформ */
+        #transform-tools {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(28, 28, 30, 0.9);
+            padding: 8px;
+            border-radius: 8px;
+            border: 1px solid #3a3a3c;
+            display: flex;
+            gap: 12px;
+            align-items: center;
+            z-index: 5;
+        }
+        #transform-tools label {
+            font-size: 12px;
+            color: #8e8e93;
+        }
+        /* Индикатор режимов */
+        #mode-indicator {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.6);
+            padding: 5px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            pointer-events: none;
+            border: 1px solid rgba(255,255,255,0.1);
+            z-index: 5;
+        }
+        /* Модальные окна */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: rgba(0,0,0,0.7);
+            z-index: 100;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        .modal-box {
+            background-color: #2c2c2e;
+            border-radius: 12px;
+            width: 100%;
+            max-width: 400px;
+            padding: 20px;
+            border: 1px solid #3a3a3c;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        .modal-box h3 {
+            font-size: 18px;
+        }
+        .modal-box input[type="text"], .modal-box input[type="number"] {
+            background-color: #1c1c1e;
+            border: 1px solid #3a3a3c;
+            border-radius: 6px;
+            padding: 8px;
+            color: white;
+            font-size: 14px;
+        }
+        .phase-preview-container {
+            display: flex;
+            gap: 5px;
+            overflow-x: auto;
+            padding: 5px 0;
+        }
+        .phase-thumb {
+            width: 50px;
+            height: 50px;
+            border: 1px dashed #555;
+            border-radius: 4px;
+            object-fit: contain;
+            background: #1c1c1e;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="top-bar">
+        <div style="display: flex; gap: 8px;">
+            <button class="btn btn-primary" id="lang-add-bone" onclick="openAddBoneModal()">+ Add Node</button>
+            <button class="btn" id="lang-import" onclick="triggerImport()">Import (.msmanim)</button>
+            <button class="btn" id="lang-export" onclick="exportProject()">Export</button>
+            <input type="file" id="import-file" class="file-input" accept=".msmanim" onchange="handleImport(event)">
+            <button class="btn btn-lang" onclick="toggleLanguage()">EN / RU</button>
+        </div>
+        <div style="display: flex; gap: 15px; align-items: center;">
+            <div class="prop-row">
+                <label style="font-size: 13px; color: #8e8e93;">FPS:</label>
+                <input type="number" id="fps-input" value="12" min="1" max="60" onchange="updateFPS(this.value)" style="width: 50px; background: #3a3a3c; color: white; border: none; padding: 4px; border-radius: 4px; text-align: center;">
+            </div>
+            <span id="current-bone-txt" style="font-size: 13px; color: #0a84ff; font-weight: bold;">Node: Not selected</span>
+        </div>
+    </div>
+
+    <div id="workspace">
+        <div id="mode-indicator">Arrows: Move. Shift + Arrows: Rotate node. Space + Mouse: Pan workspace.</div>
+        
+        <div id="transform-tools">
+            <div class="prop-row">
+                <input type="checkbox" id="show-skeleton-chk" checked onchange="toggleSkeletonVisibility(this.checked)">
+                <label for="show-skeleton-chk" id="lang-show-bones" style="cursor: pointer; color: #fff;">Show Skeleton Lines</label>
+            </div>
+            <div style="border-left: 1px solid #3a3a3c; height: 16px;"></div>
+            <label id="lang-zoom">Zoom:</label>
+            <input type="range" id="zoom-range" min="0.2" max="4" step="0.1" value="1" oninput="setZoom(this.value)">
+            <span id="zoom-val">100%</span>
+            <button class="btn btn-sm" id="lang-reset-view" onclick="resetView()">Reset View</button>
+        </div>
+
+        <canvas id="animCanvas"></canvas>
+    </div>
+
+    <div id="bottom-panel">
+        <div id="timeline-controls">
+            <button class="btn" id="play-btn" onclick="togglePlay()">▶</button>
+            <button class="btn" id="lang-key-btn" onclick="addKeyframe()" style="color: #ffd60a;">● Key</button>
+            <button class="btn btn-danger" id="lang-del-key-btn" onclick="deleteKeyframe()">Delete Key</button>
+            <div id="timeline-scroll">
+                <div class="frame-track" id="frames-container">
+                    </div>
+            </div>
+        </div>
+
+        <div id="sub-split">
+            <div id="bone-inspector">
+                <div class="panel-title" id="lang-tree-title">Layers / Nodes (Top is front layer)</div>
+                <div id="bone-list">
+                    </div>
+            </div>
+
+            <div id="property-panel">
+                <div class="panel-title" id="lang-prop-title" style="padding:0; background:none; border:none;">Node Properties</div>
+                
+                <div class="prop-group" id="phase-selector-group" style="display: none;">
+                    <label id="lang-phase-lbl">Current Phase (for Sprite Sheets):</label>
+                    <div class="prop-row">
+                        <select id="phase-index-select" onchange="changeCurrentPhase(this.value)" style="background:#3a3a3c; color:white; padding:6px; border-radius:4px; border:none; width:100%; font-size:14px;">
+                            </select>
+                    </div>
+                    <button class="btn" id="lang-add-phase-btn" onclick="addPhaseToBone()" style="margin-top: 5px; font-size:12px;">+ Add sprite phase to sheet</button>
+                    <input type="file" id="phase-file-input" class="file-input" accept="image/*" onchange="handlePhaseUpload(event)">
+                </div>
+
+                <div class="prop-group">
+                    <label id="lang-parent-lbl">Parent Binding:</label>
+                    <select id="parent-bone-select" onchange="changeBoneParent(this.value)" style="background:#3a3a3c; color:white; padding:6px; border-radius:4px; border:none;">
+                        <option value="none">None (Root)</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="add-bone-modal">
+        <div class="modal-box">
+            <h3 id="lang-modal-title">Create New Node</h3>
+            <div class="prop-group">
+                <label id="lang-modal-name-lbl">Node Name (e.g., Eye_Blink):</label>
+                <input type="text" id="new-bone-name" value="Bone_1">
+            </div>
+            <div class="prop-group">
+                <label id="lang-modal-type-lbl">Display Type:</label>
+                <div class="prop-row">
+                    <label><input type="radio" name="sprite-type" value="single" checked> <span id="lang-modal-radio-single">Single Sprite</span></label>
+                    <label><input type="radio" name="sprite-type" value="complex"> <span id="lang-modal-radio-complex">Sprite Sheet (Mouth/Blink)</span></label>
+                </div>
+            </div>
+            
+            <div class="prop-group">
+                <label id="lang-modal-img-lbl">Upload Image(s):</label>
+                <input type="file" id="modal-file-input" class="file-input" accept="image/*" multiple onchange="handleModalFiles(event)">
+                <button class="btn" id="lang-modal-upload-btn" onclick="document.getElementById('modal-file-input').click()">Choose Files</button>
+                <div class="phase-preview-container" id="modal-preview-container"></div>
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 10px;">
+                <button class="btn" id="lang-modal-cancel" onclick="closeAddBoneModal()">Cancel</button>
+                <button class="btn btn-primary" id="lang-modal-create" onclick="submitCreateBone()">Create</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- ЛОКАЛИЗАЦИЯ (DICTIONARY) ---
+        let currentLang = 'en';
+        const langData = {
+            en: {
+                addBone: "+ Add Node",
+                import: "Import (.msmanim)",
+                export: "Export",
+                nodeNotSel: "Node: Not selected",
+                nodeSel: "Node: ",
+                indicator: "Arrows: Move. Shift + Arrows: Rotate node. Space + Mouse: Pan workspace.",
+                showBones: "Show Skeleton Lines",
+                zoom: "Zoom:",
+                resetView: "Reset View",
+                keyBtn: "● Key",
+                delKeyBtn: "Delete Key",
+                treeTitle: "Layers / Nodes (Top is front layer)",
+                propTitle: "Node Properties",
+                phaseLbl: "Current Phase (for Sprite Sheets):",
+                addPhaseBtn: "+ Add sprite phase to sheet",
+                parentLbl: "Parent Binding:",
+                parentNone: "None (Root)",
+                mTitle: "Create New Node",
+                mNameLbl: "Node Name (e.g., Eye_Blink):",
+                mTypeLbl: "Display Type:",
+                mRadSingle: "Single Sprite",
+                mRadComplex: "Sprite Sheet (Mouth/Blink)",
+                mImgLbl: "Upload Image(s):",
+                mUploadBtn: "Choose Files",
+                mCancel: "Cancel",
+                mCreate: "Create",
+                typeSingleTxt: "Sprite",
+                typeComplexTxt: "Sheet",
+                phaseOptTxt: "Phase ",
+                alertFormat: "Invalid format .msmanim",
+                alertRead: "File read error."
+            },
+            ru: {
+                addBone: "+ Добавить узел",
+                import: "Импорт (.msmanim)",
+                export: "Экспорт",
+                nodeNotSel: "Узел: Не выбран",
+                nodeSel: "Узел: ",
+                indicator: "Стрелочки: Движение. Shift + Стрелочки: Крутить. Пробел + Мышь: Двигать холст.",
+                showBones: "Показывать палочки костей",
+                zoom: "Приближение:",
+                resetView: "Сбросить вид",
+                keyBtn: "● Ключ",
+                delKeyBtn: "Удалить Ключ",
+                treeTitle: "Слои / Кости (Верхние выше в списке)",
+                propTitle: "Свойства узла",
+                phaseLbl: "Текущая фаза (для связки спрайтов):",
+                addPhaseBtn: "+ Добавить кадр/фазу в связку",
+                parentLbl: "Родительская привязка:",
+                parentNone: "Нет (Корень)",
+                mTitle: "Создание новой кости",
+                mNameLbl: "Название детали (например: Глаз_Моргание):",
+                mTypeLbl: "Тип отображения:",
+                mRadSingle: "Один спрайт",
+                mRadComplex: "Связка спрайтов (Рот/Моргание)",
+                mImgLbl: "Загрузить изображение(я):",
+                mUploadBtn: "Выбрать файлы",
+                mCancel: "Отмена",
+                mCreate: "Создать",
+                typeSingleTxt: "Спрайт",
+                typeComplexTxt: "Связка",
+                phaseOptTxt: "Фаза ",
+                alertFormat: "Неверный формат файла .msmanim",
+                alertRead: "Ошибка при чтении файла."
+            }
+        };
+
+        function toggleLanguage() {
+            currentLang = currentLang === 'en' ? 'ru' : 'en';
+            applyLanguage();
+        }
+
+        function applyLanguage() {
+            const l = langData[currentLang];
+            document.getElementById('lang-add-bone').innerText = l.addBone;
+            document.getElementById('lang-import').innerText = l.import;
+            document.getElementById('lang-export').innerText = l.export;
+            document.getElementById('mode-indicator').innerText = l.indicator;
+            document.getElementById('lang-show-bones').innerText = l.showBones;
+            document.getElementById('lang-zoom').innerText = l.zoom;
+            document.getElementById('lang-reset-view').innerText = l.resetView;
+            document.getElementById('lang-key-btn').innerText = l.keyBtn;
+            document.getElementById('lang-del-key-btn').innerText = l.delKeyBtn;
+            document.getElementById('lang-tree-title').innerText = l.treeTitle;
+            document.getElementById('lang-prop-title').innerText = l.propTitle;
+            document.getElementById('lang-phase-lbl').innerText = l.phaseLbl;
+            document.getElementById('lang-add-phase-btn').innerText = l.addPhaseBtn;
+            document.getElementById('lang-parent-lbl').innerText = l.parentLbl;
+            
+            document.getElementById('lang-modal-title').innerText = l.mTitle;
+            document.getElementById('lang-modal-name-lbl').innerText = l.mNameLbl;
+            document.getElementById('lang-modal-type-lbl').innerText = l.mTypeLbl;
+            document.getElementById('lang-modal-radio-single').innerText = l.mRadSingle;
+            document.getElementById('lang-modal-radio-complex').innerText = l.mRadComplex;
+            document.getElementById('lang-modal-img-lbl').innerText = l.mImgLbl;
+            document.getElementById('lang-modal-upload-btn').innerText = l.mUploadBtn;
+            document.getElementById('lang-modal-cancel').innerText = l.mCancel;
+            document.getElementById('lang-modal-create').innerText = l.mCreate;
+
+            // Обновляем текстовые статусы узла
+            if (selectedBoneId) {
+                const bone = project.bones.find(x => x.id === selectedBoneId);
+                document.getElementById('current-bone-txt').innerText = bone ? l.nodeSel + bone.name : l.nodeNotSel;
+            } else {
+                document.getElementById('current-bone-txt').innerText = l.nodeNotSel;
+            }
+
+            buildBoneTreeUI();
+            updatePropertyPanel();
+        }
+
+        // --- СОСТОЯНИЕ ПРИЛОЖЕНИЯ ---
+        let project = {
+            bones: [],        
+            keyframes: {}     
+        };
+
+        let currentFrame = 0;
+        let maxFrames = 60;
+        let selectedBoneId = null;
+        let isPlaying = false;
+        let playInterval = null;
+        let appFPS = 12;
+        let showSkeletonLines = true;
+
+        let modalUploadedImages = [];
+
+        // Камера
+        let zoom = 1;
+        let offsetX = 0;
+        let offsetY = 0;
+        let isPanning = false;
+        let panStartX = 0;
+        let panStartY = 0;
+
+        // Взаимодействие
+        let canvas, ctx;
+        let isDragging = false;
+        let dragMode = null; 
+        let startX, startY;
+        let initialBoneX, initialBoneY;
+        let initialBoneAngle;
+
+        let imageCache = {};
+        let isSpacePressed = false;
+
+        window.onload = function() {
+            canvas = document.getElementById('animCanvas');
+            ctx = canvas.getContext('2d');
+            resizeCanvas();
+            window.addEventListener('resize', resizeCanvas);
+
+            setupTimeline();
+            setupCanvasEvents();
+            setupKeyboardEvents();
+            applyLanguage(); // Первичная инициализация языка
+            
+            requestAnimationFrame(renderLoop);
+        };
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+        }
+
+        // --- ЛОГИКА ТАЙМЛАЙНА ---
+        function setupTimeline() {
+            const container = document.getElementById('frames-container');
+            container.innerHTML = '';
+            for (let i = 0; i < maxFrames; i++) {
+                const node = document.createElement('div');
+                node.className = `frame-node ${i === currentFrame ? 'active' : ''}`;
+                node.innerText = i;
+                node.onclick = () => selectFrame(i);
+                container.appendChild(node);
+            }
+            updateKeyframeMarkers();
+        }
+
+        function selectFrame(index) {
+            currentFrame = index;
+            document.querySelectorAll('.frame-node').forEach((n, idx) => {
+                if (idx === currentFrame) n.classList.add('active');
+                else n.classList.remove('active');
+            });
+            updatePropertyPanel();
+        }
+
+        function updateKeyframeMarkers() {
+            document.querySelectorAll('.frame-node').forEach((n, idx) => {
+                if (project.keyframes[idx]) n.classList.add('has-key');
+                else n.classList.remove('has-key');
+            });
+        }
+
+        function updateFPS(val) {
+            appFPS = parseInt(val) || 12;
+            if (isPlaying) {
+                togglePlay();
+                togglePlay();
+            }
+        }
+
+        function togglePlay() {
+            const btn = document.getElementById('play-btn');
+            if (isPlaying) {
+                clearInterval(playInterval);
+                btn.innerText = '▶';
+                isPlaying = false;
+            } else {
+                btn.innerText = '⏸';
+                isPlaying = true;
+                playInterval = setInterval(() => {
+                    let nextFrame = currentFrame + 1;
+                    if (nextFrame >= maxFrames) nextFrame = 0;
+                    selectFrame(nextFrame);
+                }, 1000 / appFPS);
+            }
+        }
+
+        function toggleSkeletonVisibility(checked) {
+            showSkeletonLines = checked;
+        }
+
+        // --- УПРАВЛЕНИЕ СЛОЯМИ И ДЕРЕВОМ КОСТЕЙ ---
+        function moveLayerUp(index, e) {
+            e.stopPropagation();
+            if (index >= project.bones.length - 1) return; 
+            let temp = project.bones[index];
+            project.bones[index] = project.bones[index + 1];
+            project.bones[index + 1] = temp;
+            buildBoneTreeUI();
+        }
+
+        function moveLayerDown(index, e) {
+            e.stopPropagation();
+            if (index <= 0) return; 
+            let temp = project.bones[index];
+            project.bones[index] = project.bones[index - 1];
+            project.bones[index - 1] = temp;
+            buildBoneTreeUI();
+        }
+
+        function buildBoneTreeUI() {
+            const listContainer = document.getElementById('bone-list');
+            if (!listContainer) return;
+            listContainer.innerHTML = '';
+
+            const parentSelect = document.getElementById('parent-bone-select');
+            const l = langData[currentLang];
+            parentSelect.innerHTML = `<option value="none">${l.parentNone}</option>`;
+
+            for (let i = project.bones.length - 1; i >= 0; i--) {
+                const bone = project.bones[i];
+                const item = document.createElement('div');
+                item.className = `bone-item ${bone.id === selectedBoneId ? 'active' : ''}`;
+                item.onclick = () => selectBone(bone.id);
+                
+                const typeLabel = bone.type === 'complex' ? l.typeComplexTxt : l.typeSingleTxt;
+
+                item.innerHTML = `
+                    <span style="font-weight: 500;">🦴 ${bone.name} <small style="color:#8e8e93; font-size:10px;">(${typeLabel})</small></span>
+                    <div class="layer-controls">
+                        <button class="btn btn-sm" onclick="moveLayerUp(${i}, event)" title="Layer Up">▲</button>
+                        <button class="btn btn-sm" onclick="moveLayerDown(${i}, event)" title="Layer Down">▼</button>
+                    </div>
+                `;
+                listContainer.appendChild(item);
+
+                if (bone.id !== selectedBoneId) {
+                    const opt = document.createElement('option');
+                    opt.value = bone.id;
+                    opt.innerText = bone.name;
+                    parentSelect.appendChild(opt);
+                }
+            }
+
+            if (selectedBoneId) {
+                const b = project.bones.find(x => x.id === selectedBoneId);
+                if (b) parentSelect.value = b.parentId;
+            }
+        }
+
+        function selectBone(id) {
+            selectedBoneId = id;
+            const bone = project.bones.find(x => x.id === id);
+            const l = langData[currentLang];
+            document.getElementById('current-bone-txt').innerText = bone ? l.nodeSel + bone.name : l.nodeNotSel;
+            buildBoneTreeUI();
+            updatePropertyPanel();
+        }
+
+        function updatePropertyPanel() {
+            const phaseGroup = document.getElementById('phase-selector-group');
+            const selectPhase = document.getElementById('phase-index-select');
+            if(!selectPhase) return;
+            selectPhase.innerHTML = '';
+
+            if (!selectedBoneId) {
+                phaseGroup.style.display = 'none';
+                return;
+            }
+
+            const bone = project.bones.find(x => x.id === selectedBoneId);
+            if (!bone) return;
+
+            const l = langData[currentLang];
+
+            if (bone.type === 'complex') {
+                phaseGroup.style.display = 'flex';
+                bone.images.forEach((img, index) => {
+                    const opt = document.createElement('option');
+                    opt.value = index;
+                    opt.innerText = `${l.phaseOptTxt}${index + 1}`;
+                    selectPhase.appendChild(opt);
+                });
+                let state = getInterpolatedState(bone.id, currentFrame);
+                selectPhase.value = state.phaseIndex || 0;
+            } else {
+                phaseGroup.style.display = 'none';
+            }
+
+            document.getElementById('parent-bone-select').value = bone.parentId;
+        }
+
+        function changeBoneParent(val) {
+            if (!selectedBoneId) return;
+            const bone = project.bones.find(x => x.id === selectedBoneId);
+            if (bone) bone.parentId = val;
+        }
+
+        function changeCurrentPhase(val) {
+            if (!selectedBoneId) return;
+            const state = getOrCreateCurrentFrameState(selectedBoneId);
+            state.phaseIndex = parseInt(val);
+            updateKeyframeMarkers();
+        }
+
+        // --- ДОБАВЛЕНИЕ КОСТИ И ИЗОБРАЖЕНИЙ ---
+        function openAddBoneModal() {
+            document.getElementById('new-bone-name').value = `Node_${project.bones.length + 1}`;
+            modalUploadedImages = [];
+            document.getElementById('modal-preview-container').innerHTML = '';
+            document.getElementById('add-bone-modal').style.display = 'flex';
+        }
+
+        function closeAddBoneModal() {
+            document.getElementById('add-bone-modal').style.display = 'none';
+        }
+
+        function handleModalFiles(e) {
+            const files = e.target.files;
+            if (!files) return;
+
+            for (let i = 0; i < files.length; i++) {
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const base64 = event.target.result;
+                    modalUploadedImages.push(base64);
+                    const img = document.createElement('img');
+                    img.src = base64;
+                    img.className = 'phase-thumb';
+                    document.getElementById('modal-preview-container').appendChild(img);
+                };
+                reader.readAsDataURL(files[i]);
+            }
+        }
+
+        function submitCreateBone() {
+            const name = document.getElementById('new-bone-name').value.trim();
+            const type = document.querySelector('input[name="sprite-type"]:checked').value;
+            const newId = 'bone_' + Date.now();
+            
+            const newBone = {
+                id: newId,
+                name: name,
+                type: type,
+                parentId: 'none',
+                images: [...modalUploadedImages],
+                x: canvas.width / 2 - offsetX, 
+                y: canvas.height / 2 - offsetY,
+                angle: 0,
+                length: 60,
+                currentPhase: 0
+            };
+
+            project.bones.push(newBone); 
+            saveBoneStateToKeyframe(newBone.id, currentFrame, newBone.x, newBone.y, newBone.angle, 0);
+
+            closeAddBoneModal();
+            buildBoneTreeUI();
+            selectBone(newId);
+            preloadImages();
+        }
+
+        function addPhaseToBone() {
+            if (!selectedBoneId) return;
+            document.getElementById('phase-file-input').click();
+        }
+
+        function handlePhaseUpload(e) {
+            const file = e.target.files[0];
+            if (!file || !selectedBoneId) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const bone = project.bones.find(x => x.id === selectedBoneId);
+                if (bone) {
+                    bone.images.push(event.target.result);
+                    preloadImages();
+                    updatePropertyPanel();
+                }
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function preloadImages() {
+            project.bones.forEach(bone => {
+                bone.images.forEach((src, idx) => {
+                    const key = `${bone.id}_${idx}`;
+                    if (!imageCache[key]) {
+                        const img = new Image();
+                        img.src = src;
+                        img.onload = () => { imageCache[key] = img; };
+                    }
+                });
+            });
+        }
+
+        // --- МАТЕМАТИКА ТРАНСФОРМАЦИЙ И КЛЮЧЕЙ ---
+        function saveBoneStateToKeyframe(boneId, frame, x, y, angle, phaseIndex) {
+            if (!project.keyframes[frame]) project.keyframes[frame] = {};
+            project.keyframes[frame][boneId] = { x, y, angle, phaseIndex };
+            updateKeyframeMarkers();
+        }
+
+        function addKeyframe() {
+            if (!selectedBoneId) return;
+            const state = getInterpolatedState(selectedBoneId, currentFrame);
+            saveBoneStateToKeyframe(selectedBoneId, currentFrame, state.x, state.y, state.angle, state.phaseIndex);
+        }
+
+        function deleteKeyframe() {
+            if (project.keyframes[currentFrame] && project.keyframes[currentFrame][selectedBoneId]) {
+                delete project.keyframes[currentFrame][selectedBoneId];
+                if (Object.keys(project.keyframes[currentFrame]).length === 0) delete project.keyframes[currentFrame];
+                updateKeyframeMarkers();
+                updatePropertyPanel();
+            }
+        }
+
+        function getOrCreateCurrentFrameState(boneId) {
+            if (!project.keyframes[currentFrame]) project.keyframes[currentFrame] = {};
+            if (!project.keyframes[currentFrame][boneId]) {
+                const interp = getInterpolatedState(boneId, currentFrame);
+                project.keyframes[currentFrame][boneId] = { ...interp };
+            }
+            return project.keyframes[currentFrame][boneId];
+        }
+
+        function getInterpolatedState(boneId, frame) {
+            const bone = project.bones.find(x => x.id === boneId);
+            if (!bone) return { x: 0, y: 0, angle: 0, phaseIndex: 0 };
+
+            const sortedFrames = Object.keys(project.keyframes).map(Number).sort((a,b)=>a-b);
+            let prevFrame = null;
+            let nextFrame = null;
+
+            for (let f of sortedFrames) {
+                if (project.keyframes[f][boneId] !== undefined) {
+                    if (f <= frame) prevFrame = f;
+                    if (f >= frame && nextFrame === null) nextFrame = f;
+                }
+            }
+
+            let baseState = { x: bone.x, y: bone.y, angle: bone.angle, phaseIndex: bone.currentPhase };
+
+            if (prevFrame !== null && nextFrame !== null) {
+                if (prevFrame === nextFrame) return { ...project.keyframes[prevFrame][boneId] };
+                const k1 = project.keyframes[prevFrame][boneId];
+                const k2 = project.keyframes[nextFrame][boneId];
+                const t = (frame - prevFrame) / (nextFrame - prevFrame);
+
+                return {
+                    x: k1.x + (k2.x - k1.x) * t,
+                    y: k1.y + (k2.y - k1.y) * t,
+                    angle: k1.angle + (k2.angle - k1.angle) * t,
+                    phaseIndex: k1.phaseIndex
+                };
+            } else if (prevFrame !== null) {
+                return { ...project.keyframes[prevFrame][boneId] };
+            } else if (nextFrame !== null) {
+                return { ...project.keyframes[nextFrame][boneId] };
+            }
+
+            return baseState;
+        }
+
+        function getGlobalTransform(boneId, frame) {
+            const bone = project.bones.find(x => x.id === boneId);
+            if (!bone) return { x: 0, y: 0, angle: 0, phaseIndex: 0 };
+
+            const localState = getInterpolatedState(boneId, frame);
+
+            if (bone.parentId === 'none') {
+                return localState;
+            } else {
+                const parentGlobal = getGlobalTransform(bone.parentId, frame);
+                const parentBoneObj = project.bones.find(x => x.id === bone.parentId);
+                const pLength = parentBoneObj ? parentBoneObj.length : 60;
+
+                const jointX = parentGlobal.x + Math.cos(parentGlobal.angle) * pLength;
+                const jointY = parentGlobal.y + Math.sin(parentGlobal.angle) * pLength;
+
+                return {
+                    x: jointX + localState.x - (canvas.width/2),
+                    y: jointY + localState.y - (canvas.height/2),
+                    angle: parentGlobal.angle + localState.angle,
+                    phaseIndex: localState.phaseIndex
+                };
+            }
+        }
+
+        // --- НАСТРОЙКИ ЗУМА И ПРОСТРАНСТВА ---
+        function setZoom(val) {
+            zoom = parseFloat(val);
+            document.getElementById('zoom-range').value = zoom;
+            document.getElementById('zoom-val').innerText = `${Math.round(zoom * 100)}%`;
+        }
+
+        function resetView() {
+            setZoom(1);
+            offsetX = 0;
+            offsetY = 0;
+        }
+
+        // --- КЛАВИАТУРА (СТРЕЛКИ И ПРОБЕЛ) ---
+        function setupKeyboardEvents() {
+            window.addEventListener('keydown', function(e) {
+                if (e.code === 'Space') {
+                    isSpacePressed = true;
+                }
+
+                if (selectedBoneId) {
+                    const step = 1; 
+                    const angleStep = 0.02; 
+                    const state = getOrCreateCurrentFrameState(selectedBoneId);
+
+                    if (e.key === 'ArrowUp' || e.key === 'ArrowDown' || e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+                        e.preventDefault(); 
+                    }
+
+                    if (e.shiftKey) {
+                        if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') state.angle -= angleStep;
+                        if (e.key === 'ArrowRight' || e.key === 'ArrowDown') state.angle += angleStep;
+                    } else {
+                        if (e.key === 'ArrowUp') state.y -= step;
+                        if (e.key === 'ArrowDown') state.y += step;
+                        if (e.key === 'ArrowLeft') state.x -= step;
+                        if (e.key === 'ArrowRight') state.x += step;
+                    }
+                }
+            });
+
+            window.addEventListener('keyup', function(e) {
+                if (e.code === 'Space') {
+                    isSpacePressed = false;
+                    isPanning = false;
+                }
+            });
+        }
+
+        // --- СОБЫТИЯ ХОЛСТА ---
+        function setupCanvasEvents() {
+            const getPos = (e) => {
+                const rect = canvas.getBoundingClientRect();
+                const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+                const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+                
+                return {
+                    x: (clientX - rect.left - offsetX) / zoom,
+                    y: (clientY - rect.top - offsetY) / zoom,
+                    screenX: clientX - rect.left,
+                    screenY: clientY - rect.top
+                };
+            };
+
+            canvas.addEventListener('wheel', function(e) {
+                e.preventDefault();
+                let newZoom = zoom - e.deltaY * 0.001;
+                newZoom = Math.max(0.2, Math.min(4, newZoom));
+                setZoom(newZoom);
+            }, { passive: false });
+
+            const downHandler = (e) => {
+                const pos = getPos(e);
+
+                if (isSpacePressed) {
+                    isPanning = true;
+                    panStartX = pos.screenX - offsetX;
+                    panStartY = pos.screenY - offsetY;
+                    return;
+                }
+
+                if (selectedBoneId) {
+                    const b = project.bones.find(x => x.id === selectedBoneId);
+                    if (b) {
+                        isDragging = true;
+                        dragMode = e.shiftKey ? 'rotate' : 'move'; 
+                        startX = pos.x;
+                        startY = pos.y;
+
+                        const state = getOrCreateCurrentFrameState(b.id);
+                        initialBoneX = state.x;
+                        initialBoneY = state.y;
+                        initialBoneAngle = state.angle;
+                    }
+                }
+                if(e.cancelable) e.preventDefault();
+            };
+
+            const moveHandler = (e) => {
+                const pos = getPos(e);
+
+                if (isPanning) {
+                    offsetX = pos.screenX - panStartX;
+                    offsetY = pos.screenY - panStartY;
+                    return;
+                }
+
+                if (!isDragging || !selectedBoneId) return;
+                const dx = pos.x - startX;
+                const dy = pos.y - startY;
+
+                const state = getOrCreateCurrentFrameState(selectedBoneId);
+
+                if (dragMode === 'move') {
+                    state.x = initialBoneX + dx;
+                    state.y = initialBoneY + dy;
+                } else if (dragMode === 'rotate') {
+                    const global = getGlobalTransform(selectedBoneId, currentFrame);
+                    const oldAngle = Math.atan2(startY - global.y, startX - global.x);
+                    const newAngle = Math.atan2(pos.y - global.y, pos.x - global.x);
+                    state.angle = initialBoneAngle + (newAngle - oldAngle);
+                }
+            };
+
+            const upHandler = () => {
+                isDragging = false;
+                isPanning = false;
+                dragMode = null;
+            };
+
+            canvas.addEventListener('mousedown', downHandler);
+            canvas.addEventListener('mousemove', moveHandler);
+            window.addEventListener('mouseup', upHandler);
+
+            canvas.addEventListener('touchstart', downHandler, {passive: false});
+            canvas.addEventListener('touchmove', moveHandler, {passive: false});
+            window.addEventListener('touchend', upHandler);
+        }
+
+        // --- ЦИКЛ РЕНДЕРА (CANVAS) ---
+        function renderLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.save();
+            ctx.translate(offsetX, offsetY);
+            ctx.scale(zoom, zoom);
+
+            drawGrid();
+
+            // Отрисовка текстур монстров
+            project.bones.forEach(bone => {
+                drawBoneSprite(bone);
+            });
+
+            // Отрисовка направляющих костей (только если чекбокс включен!)
+            if (showSkeletonLines) {
+                project.bones.forEach(bone => {
+                    drawBoneSkeleton(bone);
+                });
+            }
+
+            ctx.restore();
+            requestAnimationFrame(renderLoop);
+        }
+
+        function drawGrid() {
+            ctx.strokeStyle = '#3a3a3c';
+            ctx.lineWidth = 0.5;
+            const step = 50;
+            for(let x = -2000; x < 4000; x += step) {
+                ctx.beginPath(); ctx.moveTo(x, -2000); ctx.lineTo(x, 4000); ctx.stroke();
+            }
+            for(let y = -2000; y < 4000; y += step) {
+                ctx.beginPath(); ctx.moveTo(-2000, y); ctx.lineTo(4000, y); ctx.stroke();
+            }
+        }
+
+        function drawBoneSprite(bone) {
+            const global = getGlobalTransform(bone.id, currentFrame);
+            const imgKey = `${bone.id}_${global.phaseIndex || 0}`;
+            const img = imageCache[imgKey];
+
+            if (img && img.complete) {
+                ctx.save();
+                ctx.translate(global.x, global.y);
+                ctx.rotate(global.angle);
+                const w = img.width;
+                const h = img.height;
+                ctx.drawImage(img, 0, -h/2, w, h);
+                ctx.restore();
+            }
+        }
+
+        function drawBoneSkeleton(bone) {
+            const global = getGlobalTransform(bone.id, currentFrame);
+            const tipX = global.x + Math.cos(global.angle) * bone.length;
+            const tipY = global.y + Math.sin(global.angle) * bone.length;
+
+            const isSelected = bone.id === selectedBoneId;
+
+            // Отрезали жесткие палочки, оставили только микроскопические полупрозрачные маркеры суставов и векторов
+            ctx.beginPath();
+            ctx.moveTo(global.x, global.y);
+            ctx.lineTo(tipX, tipY);
+            ctx.strokeStyle = isSelected ? 'rgba(10, 132, 255, 0.6)' : 'rgba(255, 214, 10, 0.15)';
+            ctx.lineWidth = isSelected ? 2 : 1;
+            ctx.stroke();
+
+            // Корень сочленения
+            ctx.beginPath();
+            ctx.arc(global.x, global.y, 3, 0, Math.PI*2);
+            ctx.fillStyle = isSelected ? '#54a6ff' : 'rgba(255, 255, 255, 0.3)';
+            ctx.fill();
+
+            // Конец вектора направленности
+            ctx.beginPath();
+            ctx.arc(tipX, tipY, 2, 0, Math.PI*2);
+            ctx.fillStyle = isSelected ? '#ff453a' : 'rgba(255, 69, 58, 0.2)';
+            ctx.fill();
+        }
+
+        // --- ЭКСПОРТ И ИМПОРТ ---
+        function exportProject() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(project, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `msm_proj_${Date.now()}.msmanim`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+        }
+
+        function triggerImport() {
+            document.getElementById('import-file').click();
+        }
+
+        function handleImport(e) {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const l = langData[currentLang];
+                try {
+                    const parsed = JSON.parse(event.target.result);
+                    if (parsed.bones && parsed.keyframes) {
+                        project = parsed;
+                        currentFrame = 0;
+                        selectedBoneId = null;
+                        
+                        setupTimeline();
+                        preloadImages();
+                        buildBoneTreeUI();
+                        updatePropertyPanel();
+                        resetView();
+                    } else {
+                        alert(l.alertFormat);
+                    }
+                } catch (err) {
+                    alert(l.alertRead);
+                }
+            };
+            reader.readAsText(file);
+        }
+    </script>
+</body>
+</html>
