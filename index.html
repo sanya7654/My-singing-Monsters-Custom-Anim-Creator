@@ -356,6 +356,13 @@
                         <option value="none">None (Root)</option>
                     </select>
                 </div>
+
+                <div class="prop-group" id="mirror-group" style="display: none; margin-top: 5px; border-top: 1px solid #2c2c2e; padding-top: 10px;">
+                    <div class="prop-row">
+                        <input type="checkbox" id="bone-mirror-chk" onchange="toggleBoneMirror(this.checked)" style="width:16px; height:16px; cursor:pointer;">
+                        <label for="bone-mirror-chk" id="lang-mirror-lbl" style="cursor: pointer; color: #fff; font-size: 13px;">Mirror Horizontal (Flip)</label>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -426,7 +433,8 @@
                 alertFormat: "Invalid format .msmanim",
                 alertRead: "File read error.",
                 duplicateBtn: "Copy",
-                alertNoImages: "Please choose at least one image file before creating a node!"
+                alertNoImages: "Please choose at least one image file before creating a node!",
+                mirrorLbl: "Mirror Horizontal (Flip)"
             },
             ru: {
                 addBone: "+ Добавить узел",
@@ -461,7 +469,8 @@
                 alertFormat: "Неверный формат файла .msmanim",
                 alertRead: "Ошибка при чтении файла.",
                 duplicateBtn: "Клон",
-                alertNoImages: "Пожалуйста, выберите хотя бы один файл изображения перед созданием узла!"
+                alertNoImages: "Пожалуйста, выберите хотя бы один файл изображения перед созданием узла!",
+                mirrorLbl: "Отразить по горизонтали (Зеркало)"
             }
         };
 
@@ -486,6 +495,7 @@
             document.getElementById('lang-phase-lbl').innerText = l.phaseLbl;
             document.getElementById('lang-add-phase-btn').innerText = l.addPhaseBtn;
             document.getElementById('lang-parent-lbl').innerText = l.parentLbl;
+            document.getElementById('lang-mirror-lbl').innerText = l.mirrorLbl;
             
             document.getElementById('lang-modal-title').innerText = l.mTitle;
             document.getElementById('lang-modal-name-lbl').innerText = l.mNameLbl;
@@ -660,7 +670,8 @@
                 y: sourceBone.y + 30,
                 angle: sourceBone.angle,
                 length: sourceBone.length,
-                currentPhase: sourceBone.currentPhase
+                currentPhase: sourceBone.currentPhase,
+                flipX: sourceBone.flipX || false // Наследуем зеркальность при клонировании!
             };
 
             project.bones.push(clonedBone);
@@ -743,11 +754,15 @@
         function updatePropertyPanel() {
             const phaseGroup = document.getElementById('phase-selector-group');
             const selectPhase = document.getElementById('phase-index-select');
+            const mirrorGroup = document.getElementById('mirror-group');
+            const mirrorChk = document.getElementById('bone-mirror-chk');
+
             if(!selectPhase) return;
             selectPhase.innerHTML = '';
 
             if (!selectedBoneId) {
                 phaseGroup.style.display = 'none';
+                mirrorGroup.style.display = 'none';
                 return;
             }
 
@@ -755,6 +770,10 @@
             if (!bone) return;
 
             const l = langData[currentLang];
+
+            // Отображение чекбокса отзеркаливания
+            mirrorGroup.style.display = 'flex';
+            mirrorChk.checked = bone.flipX || false;
 
             if (bone.type === 'complex') {
                 phaseGroup.style.display = 'flex';
@@ -773,6 +792,15 @@
             document.getElementById('parent-bone-select').value = bone.parentId;
         }
 
+        // Логика переключения зеркальности узла
+        function toggleBoneMirror(checked) {
+            if (!selectedBoneId) return;
+            const bone = project.bones.find(x => x.id === selectedBoneId);
+            if (bone) {
+                bone.flipX = checked;
+            }
+        }
+
         function changeBoneParent(val) {
             if (!selectedBoneId) return;
             const bone = project.bones.find(x => x.id === selectedBoneId);
@@ -789,16 +817,16 @@
         // --- ДОБАВЛЕНИЕ КОСТИ И ИЗОБРАЖЕНИЙ ---
         function openAddBoneModal() {
             document.getElementById('new-bone-name').value = `Node_${project.bones.length + 1}`;
-            modalUploadedImages = []; // Полная железная очистка массива при каждом открытии
-            document.getElementById('modal-file-input').value = ""; // Сброс системного инпута файлов
+            modalUploadedImages = []; 
+            document.getElementById('modal-file-input').value = ""; 
             document.getElementById('modal-preview-container').innerHTML = '';
             document.getElementById('add-bone-modal').style.display = 'flex';
         }
 
         function closeAddBoneModal() {
-            modalUploadedImages = []; // Защитная очистка при отмене
+            modalUploadedImages = []; 
             document.getElementById('modal-file-input').value = "";
-            document.getElementById('add-add-bone-modal' ? 'add-bone-modal' : 'add-bone-modal').style.display = 'none';
+            document.getElementById('add-bone-modal').style.display = 'none';
         }
 
         function handleModalFiles(e) {
@@ -822,7 +850,6 @@
         function submitCreateBone() {
             const l = langData[currentLang];
             
-            // ЖЁСТКАЯ ПРОВЕРКА: Если Саня нажал отмену или забыл файлы, не создаём пустую кость!
             if (!modalUploadedImages || modalUploadedImages.length === 0) {
                 alert(l.alertNoImages);
                 return;
@@ -842,7 +869,8 @@
                 y: canvas.height / 2 - offsetY,
                 angle: 0,
                 length: 60,
-                currentPhase: 0
+                currentPhase: 0,
+                flipX: false // По дефолту новое незазеркалено
             };
 
             project.bones.push(newBone); 
@@ -1157,6 +1185,7 @@
             }
         }
 
+        // РЕНДЕР С УЧЁТОМ ЗЕРКАЛИРОВАНИЯ ХОРИЗОНТАЛИ
         function drawBoneSprite(bone) {
             const global = getGlobalTransform(bone.id, currentFrame);
             const imgKey = `${bone.id}_${global.phaseIndex || 0}`;
@@ -1164,16 +1193,29 @@
 
             if (img && img.complete) {
                 ctx.save();
+                // Переносим матрицу в глобальные координаты кости
                 ctx.translate(global.x, global.y);
                 ctx.rotate(global.angle);
+                
                 const w = img.width;
                 const h = img.height;
-                ctx.drawImage(img, 0, -h/2, w, h);
+
+                // Если включено зеркальное отражение
+                if (bone.flipX) {
+                    ctx.save();
+                    ctx.scale(-1, 1); // Отражаем по оси X
+                    // Так как мы перевернули ось, отрисовку сдвигаем по зеркальной логике
+                    ctx.drawImage(img, -w, -h/2, w, h);
+                    ctx.restore();
+                } else {
+                    ctx.drawImage(img, 0, -h/2, w, h);
+                }
+                
                 ctx.restore();
             } else if (bone.images && bone.images.length > 0) {
-                // Если картинка почему-то сломалась или в кэше пусто, рисуем заглушку, чтобы кость не была невидимой!
                 ctx.save();
                 ctx.translate(global.x, global.y);
+                ctx.rotate(global.angle);
                 ctx.fillStyle = "rgba(10, 132, 255, 0.4)";
                 ctx.fillRect(0, -10, bone.length, 20);
                 ctx.restore();
