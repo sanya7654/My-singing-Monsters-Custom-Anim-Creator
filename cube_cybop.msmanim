@@ -100,7 +100,7 @@
     },
     {
       "id": "bone_1779702386755",
-      "name": "Node_2",
+      "name": "Eye_Ball",
       "type": "single",
       "parentId": "none",
       "images": [
@@ -114,7 +114,7 @@
     },
     {
       "id": "bone_1779702461804",
-      "name": "Node_4",
+      "name": "Pupil",
       "type": "complex",
       "parentId": "none",
       "images": [
@@ -128,7 +128,7 @@
     },
     {
       "id": "bone_1779702431387",
-      "name": "Node_3",
+      "name": "Eye_Lid",
       "type": "complex",
       "parentId": "none",
       "images": [
