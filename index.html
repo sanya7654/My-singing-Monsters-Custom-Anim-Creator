@@ -425,7 +425,8 @@
                 phaseOptTxt: "Phase ",
                 alertFormat: "Invalid format .msmanim",
                 alertRead: "File read error.",
-                duplicateBtn: "Copy"
+                duplicateBtn: "Copy",
+                alertNoImages: "Please choose at least one image file before creating a node!"
             },
             ru: {
                 addBone: "+ Добавить узел",
@@ -459,7 +460,8 @@
                 phaseOptTxt: "Фаза ",
                 alertFormat: "Неверный формат файла .msmanim",
                 alertRead: "Ошибка при чтении файла.",
-                duplicateBtn: "Клон"
+                duplicateBtn: "Клон",
+                alertNoImages: "Пожалуйста, выберите хотя бы один файл изображения перед созданием узла!"
             }
         };
 
@@ -495,7 +497,6 @@
             document.getElementById('lang-modal-cancel').innerText = l.mCancel;
             document.getElementById('lang-modal-create').innerText = l.mCreate;
 
-            // Обновляем текстовые статусы узла
             if (selectedBoneId) {
                 const bone = project.bones.find(x => x.id === selectedBoneId);
                 document.getElementById('current-bone-txt').innerText = bone ? l.nodeSel + bone.name : l.nodeNotSel;
@@ -551,7 +552,7 @@
             setupTimeline();
             setupCanvasEvents();
             setupKeyboardEvents();
-            applyLanguage(); // Первичная инициализация языка
+            applyLanguage();
             
             requestAnimationFrame(renderLoop);
         };
@@ -649,7 +650,6 @@
             const newId = 'bone_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
             const newName = `${sourceBone.name}_copy`;
 
-            // 1. Клонируем саму структуру кости (смещаем чуть вбок, чтобы заметить на экране)
             const clonedBone = {
                 id: newId,
                 name: newName,
@@ -665,12 +665,11 @@
 
             project.bones.push(clonedBone);
 
-            // 2. Копируем ВСЕ ключевые кадры для этой кости по всему таймлайну
             Object.keys(project.keyframes).forEach(frame => {
                 if (project.keyframes[frame][sourceBone.id] !== undefined) {
                     const srcState = project.keyframes[frame][sourceBone.id];
                     project.keyframes[frame][newId] = {
-                        x: srcState.x + 30, // Сдвигаем ключи тоже, чтобы анимация дубликата не прыгала
+                        x: srcState.x + 30, 
                         y: srcState.y + 30,
                         angle: srcState.angle,
                         phaseIndex: srcState.phaseIndex
@@ -678,7 +677,6 @@
                 }
             });
 
-            // Кэшируем картинки для нового ID кости
             clonedBone.images.forEach((src, idx) => {
                 const srcKey = `${sourceBone.id}_${idx}`;
                 const newKey = `${newId}_${idx}`;
@@ -791,18 +789,21 @@
         // --- ДОБАВЛЕНИЕ КОСТИ И ИЗОБРАЖЕНИЙ ---
         function openAddBoneModal() {
             document.getElementById('new-bone-name').value = `Node_${project.bones.length + 1}`;
-            modalUploadedImages = [];
+            modalUploadedImages = []; // Полная железная очистка массива при каждом открытии
+            document.getElementById('modal-file-input').value = ""; // Сброс системного инпута файлов
             document.getElementById('modal-preview-container').innerHTML = '';
             document.getElementById('add-bone-modal').style.display = 'flex';
         }
 
         function closeAddBoneModal() {
-            document.getElementById('add-bone-modal').style.display = 'none';
+            modalUploadedImages = []; // Защитная очистка при отмене
+            document.getElementById('modal-file-input').value = "";
+            document.getElementById('add-add-bone-modal' ? 'add-bone-modal' : 'add-bone-modal').style.display = 'none';
         }
 
         function handleModalFiles(e) {
             const files = e.target.files;
-            if (!files) return;
+            if (!files || files.length === 0) return;
 
             for (let i = 0; i < files.length; i++) {
                 const reader = new FileReader();
@@ -819,6 +820,14 @@
         }
 
         function submitCreateBone() {
+            const l = langData[currentLang];
+            
+            // ЖЁСТКАЯ ПРОВЕРКА: Если Саня нажал отмену или забыл файлы, не создаём пустую кость!
+            if (!modalUploadedImages || modalUploadedImages.length === 0) {
+                alert(l.alertNoImages);
+                return;
+            }
+
             const name = document.getElementById('new-bone-name').value.trim();
             const type = document.querySelector('input[name="sprite-type"]:checked').value;
             const newId = 'bone_' + Date.now();
@@ -839,7 +848,7 @@
             project.bones.push(newBone); 
             saveBoneStateToKeyframe(newBone.id, currentFrame, newBone.x, newBone.y, newBone.angle, 0);
 
-            closeAddBoneModal();
+            document.getElementById('add-bone-modal').style.display = 'none';
             buildBoneTreeUI();
             selectBone(newId);
             preloadImages();
@@ -986,7 +995,7 @@
             offsetY = 0;
         }
 
-        // --- КЛАВИАТУРА (СТРЕЛКИ И ПРОБЕЛ) ---
+        // --- КЛАВИАТУРА ---
         function setupKeyboardEvents() {
             window.addEventListener('keydown', function(e) {
                 if (e.code === 'Space') {
@@ -1122,12 +1131,10 @@
 
             drawGrid();
 
-            // Отрисовка текстур монстров
             project.bones.forEach(bone => {
                 drawBoneSprite(bone);
             });
 
-            // Отрисовка направляющих костей (только если чекбокс включен!)
             if (showSkeletonLines) {
                 project.bones.forEach(bone => {
                     drawBoneSkeleton(bone);
@@ -1163,6 +1170,13 @@
                 const h = img.height;
                 ctx.drawImage(img, 0, -h/2, w, h);
                 ctx.restore();
+            } else if (bone.images && bone.images.length > 0) {
+                // Если картинка почему-то сломалась или в кэше пусто, рисуем заглушку, чтобы кость не была невидимой!
+                ctx.save();
+                ctx.translate(global.x, global.y);
+                ctx.fillStyle = "rgba(10, 132, 255, 0.4)";
+                ctx.fillRect(0, -10, bone.length, 20);
+                ctx.restore();
             }
         }
 
@@ -1173,7 +1187,6 @@
 
             const isSelected = bone.id === selectedBoneId;
 
-            // Микроскопические полупрозрачные маркеры суставов и векторов
             ctx.beginPath();
             ctx.moveTo(global.x, global.y);
             ctx.lineTo(tipX, tipY);
@@ -1181,13 +1194,11 @@
             ctx.lineWidth = isSelected ? 2 : 1;
             ctx.stroke();
 
-            // Корень сочленения
             ctx.beginPath();
             ctx.arc(global.x, global.y, 3, 0, Math.PI*2);
             ctx.fillStyle = isSelected ? '#54a6ff' : 'rgba(255, 255, 255, 0.3)';
             ctx.fill();
 
-            // Конец вектора направленности
             ctx.beginPath();
             ctx.arc(tipX, tipY, 2, 0, Math.PI*2);
             ctx.fillStyle = isSelected ? '#ff453a' : 'rgba(255, 69, 58, 0.2)';
