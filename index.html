@@ -424,7 +424,8 @@
                 typeComplexTxt: "Sheet",
                 phaseOptTxt: "Phase ",
                 alertFormat: "Invalid format .msmanim",
-                alertRead: "File read error."
+                alertRead: "File read error.",
+                duplicateBtn: "Copy"
             },
             ru: {
                 addBone: "+ Добавить узел",
@@ -457,7 +458,8 @@
                 typeComplexTxt: "Связка",
                 phaseOptTxt: "Фаза ",
                 alertFormat: "Неверный формат файла .msmanim",
-                alertRead: "Ошибка при чтении файла."
+                alertRead: "Ошибка при чтении файла.",
+                duplicateBtn: "Клон"
             }
         };
 
@@ -638,6 +640,58 @@
             buildBoneTreeUI();
         }
 
+        // --- ФУНКЦИЯ ДУБЛИРОВАНИЯ КОСТИ ---
+        function duplicateBone(index, e) {
+            e.stopPropagation();
+            const sourceBone = project.bones[index];
+            if (!sourceBone) return;
+
+            const newId = 'bone_' + Date.now() + '_' + Math.floor(Math.random() * 1000);
+            const newName = `${sourceBone.name}_copy`;
+
+            // 1. Клонируем саму структуру кости (смещаем чуть вбок, чтобы заметить на экране)
+            const clonedBone = {
+                id: newId,
+                name: newName,
+                type: sourceBone.type,
+                parentId: sourceBone.parentId,
+                images: [...sourceBone.images],
+                x: sourceBone.x + 30,
+                y: sourceBone.y + 30,
+                angle: sourceBone.angle,
+                length: sourceBone.length,
+                currentPhase: sourceBone.currentPhase
+            };
+
+            project.bones.push(clonedBone);
+
+            // 2. Копируем ВСЕ ключевые кадры для этой кости по всему таймлайну
+            Object.keys(project.keyframes).forEach(frame => {
+                if (project.keyframes[frame][sourceBone.id] !== undefined) {
+                    const srcState = project.keyframes[frame][sourceBone.id];
+                    project.keyframes[frame][newId] = {
+                        x: srcState.x + 30, // Сдвигаем ключи тоже, чтобы анимация дубликата не прыгала
+                        y: srcState.y + 30,
+                        angle: srcState.angle,
+                        phaseIndex: srcState.phaseIndex
+                    };
+                }
+            });
+
+            // Кэшируем картинки для нового ID кости
+            clonedBone.images.forEach((src, idx) => {
+                const srcKey = `${sourceBone.id}_${idx}`;
+                const newKey = `${newId}_${idx}`;
+                if (imageCache[srcKey]) {
+                    imageCache[newKey] = imageCache[srcKey];
+                }
+            });
+
+            buildBoneTreeUI();
+            selectBone(newId);
+            updateKeyframeMarkers();
+        }
+
         function buildBoneTreeUI() {
             const listContainer = document.getElementById('bone-list');
             if (!listContainer) return;
@@ -658,6 +712,7 @@
                 item.innerHTML = `
                     <span style="font-weight: 500;">🦴 ${bone.name} <small style="color:#8e8e93; font-size:10px;">(${typeLabel})</small></span>
                     <div class="layer-controls">
+                        <button class="btn btn-sm btn-primary" onclick="duplicateBone(${i}, event)" style="font-size:10px; padding:2px 4px;" title="Duplicate Node">${l.duplicateBtn}</button>
                         <button class="btn btn-sm" onclick="moveLayerUp(${i}, event)" title="Layer Up">▲</button>
                         <button class="btn btn-sm" onclick="moveLayerDown(${i}, event)" title="Layer Down">▼</button>
                     </div>
@@ -824,7 +879,7 @@
             });
         }
 
-        // --- МАТЕМАТИКА ТРАНСФОРМАЦИЙ И КЛЮЧЕЙ ---
+        // --- МАТЕМАТИКА ТРАНФОРМАЦИЙ И КЛЮЧЕЙ ---
         function saveBoneStateToKeyframe(boneId, frame, x, y, angle, phaseIndex) {
             if (!project.keyframes[frame]) project.keyframes[frame] = {};
             project.keyframes[frame][boneId] = { x, y, angle, phaseIndex };
@@ -1118,7 +1173,7 @@
 
             const isSelected = bone.id === selectedBoneId;
 
-            // Отрезали жесткие палочки, оставили только микроскопические полупрозрачные маркеры суставов и векторов
+            // Микроскопические полупрозрачные маркеры суставов и векторов
             ctx.beginPath();
             ctx.moveTo(global.x, global.y);
             ctx.lineTo(tipX, tipY);
